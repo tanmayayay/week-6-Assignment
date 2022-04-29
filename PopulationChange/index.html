@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang = "en">
+    <head>
+        <meta charset = "UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name = "viewport" content = "width = device-width, initial-scale = 1.0">
+        <script src="../libs/d3.js"></script>
+        <script src="https://d3js.org/topojson.v1.min.js"></script>
+        <title>MA Pop Change</title>
+        <style>
+            body{
+                text-align: center;
+                margin: auto;
+                font-family: sans-serif;
+            }
+            #tooltip {
+                position: absolute;
+                opacity: 0;
+                top: 0;
+                left: 0;
+                width: auto;
+                padding: 10px;
+                background: white;
+                font-family: sans-serif;
+                font-size: medium;
+                border-radius: 2px;
+                line-height: 1;
+            }
+            path {
+                stroke-width: 0.5px;
+                stroke: black;
+            }
+            path:hover {
+                opacity: 0.6;
+                stroke: black;
+                stroke-width: 4px;
+            }
+            #details {
+                position: absolute;
+                margin: 10px;
+                opacity: 0;
+                top: 0;
+                right: 0;
+                width: 150px;
+                height: auto;
+                padding: 10px;
+                background: azure;
+                font-family: sans-serif;
+                font-size: medium;
+                border-radius: 2px;
+                line-height: 1;
+                border: 1px solid #000;
+            }
+            svg {
+                margin: auto;
+                width: 90%;
+                padding: 10px;
+                text-align: center;
+
+            }
+
+        </style>
+    </head>
+
+    <body>
+    <div id = "tooltip"></div>
+    <div id = "details"></div>
+    <h1>
+        Massachusetts Population Change,  2000-2010
+    </h1>
+
+    
+    <script>
+        //set page dimensions
+        const page_dims = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+        const margin = page_dims.width * 0.2
+        //create constant to store data location
+        const MA_counties = "https://raw.githubusercontent.com/umassdgithub/week-6-Assignment/00bfd2f04db095cd9ee20d68765216a71ed0452c/data/towns.topojson"
+        //open file
+        Promise.all([
+            d3.json(MA_counties)
+        ]).then(data => {
+            const topo_data = data[0];
+            //convert topology data to geojson
+            const geojson = topojson.feature(topo_data, topo_data.objects.ma);
+
+            //create geoPath generator
+            const geoPath_generator = d3.geoPath()
+                .projection(d3.geoMercator()
+                .fitSize([page_dims.width - margin, page_dims.height - margin], geojson))
+            //color scaling
+            var colorInterpolator = d3.interpolateRgbBasis(["blue", "turquoise", "green", "purple"])
+            
+            //if data is scaled using a log scale
+            let logScale = d3.scaleLog()
+                .domain(d3.extent(geojson.features, (d) => {
+                    return d['properties']['POPCH00_10']
+                }))
+            //if data is scaled using a linear scale
+            let linearScale = d3.scaleLinear()
+                .domain(d3.extent(geojson.features, (d) => {
+                    return d['properties']['POPCH00_10']
+                }))
+
+            //create tooltip
+            const tooltip = d3.select("#tooltip");
+            const details = d3.select("#details");
+            //append SVG
+           let svg = d3.select("body").append("svg")
+                .attr("width", "200vw")
+                .attr("height", "200vh");
+                //add path for the boundaries
+                svg.selectAll("path")
+                .data(geojson.features)
+                .enter()
+                .append("path")
+                .attr("d", d => geoPath_generator(d))
+                .attr("fill", d => colorInterpolator(linearScale(d['properties']['POPCH00_10'])))
+                .on("mouseenter", (m, d) => {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0.9)
+                    tooltip.html(d['properties']['TOWN'])
+                        .style("left", m.clientX + "px")
+                        .style("top", m.clientY + "px")
+                    details.transition()
+                        .duration(200)
+                        .style("opacity", 0.9)
+                    details.html("<div>Town: </div>" + 
+                                "<div>" + d['properties']['TOWN'] + "</div>" +
+                                "<div>Population in 2000: </div>" + 
+                                "<div>" + d['properties']['POP2000'] + "</div>" +
+                                "<div>Population in 2010: </div>" + 
+                                "<div>" + d['properties']['POP2010'] + "</div>" +
+                                "<div>Difference: </div>" + 
+                                "<div>" + d['properties']['POPCH00_10'] + "</div>"  
+                    );
+                })
+                .on("mousemove", (m, d) => {
+                    tooltip.style("opacity", 0.9)
+                    details.style("opacity", 0.9)
+                })
+                .on("mouseout", (m, d) => {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0)
+                    details.transition()
+                        .duration(200)
+                        .style("opacity", 0)
+                })
+        })
+    </script>
+    </body>
+</html>
